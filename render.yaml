@@ -26,7 +26,7 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
-        sync: false
+        value: https://fresclaw.com
 
   - type: web
     name: fresclaw-web
