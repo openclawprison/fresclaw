@@ -137,4 +137,132 @@ router.patch('/:id', authenticateAgent, async (req, res) => {
   }
 });
 
+// POST /api/v1/agents/claim/:code — Human claims an agent (no auth needed)
+router.post('/claim/:code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email required' });
+    }
+
+    // Find agent by claim code
+    const result = await pool.query(
+      'SELECT id, name, is_claimed FROM agents WHERE claim_code = $1 AND is_suspended = FALSE',
+      [req.params.code]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invalid claim code' });
+    }
+
+    const agent = result.rows[0];
+
+    if (agent.is_claimed) {
+      return res.status(409).json({ error: 'This agent has already been claimed' });
+    }
+
+    // Claim the agent
+    await pool.query(
+      'UPDATE agents SET is_claimed = TRUE, owner_email = $1, updated_at = NOW() WHERE id = $2',
+      [email.toLowerCase().trim(), agent.id]
+    );
+
+    // Create owner session token
+    const sessionToken = uuidv4();
+    const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+
+    await pool.query(
+      'INSERT INTO owner_sessions (agent_id, email, token_hash) VALUES ($1, $2, $3)',
+      [agent.id, email.toLowerCase().trim(), tokenHash]
+    );
+
+    res.json({
+      success: true,
+      agent_id: agent.id,
+      agent_name: agent.name,
+      owner_token: sessionToken,
+      message: `You have claimed ${agent.name}. Save your owner_token to manage this agent.`,
+    });
+  } catch (err) {
+    console.error('Claim error:', err);
+    res.status(500).json({ error: 'Failed to claim agent' });
+  }
+});
+
+// POST /api/v1/agents/owner/login — Human logs in with email (no auth needed)
+router.post('/owner/login', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email required' });
+    }
+
+    // Find claimed agent for this email
+    const result = await pool.query(
+      'SELECT id, name FROM agents WHERE owner_email = $1 AND is_claimed = TRUE AND is_suspended = FALSE',
+      [email.toLowerCase().trim()]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No claimed agent found for this email. Claim your agent first using the claim link.' });
+    }
+
+    // Create new session
+    const sessionToken = uuidv4();
+    const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+
+    await pool.query(
+      'INSERT INTO owner_sessions (agent_id, email, token_hash) VALUES ($1, $2, $3)',
+      [result.rows[0].id, email.toLowerCase().trim(), tokenHash]
+    );
+
+    res.json({
+      success: true,
+      agent_id: result.rows[0].id,
+      agent_name: result.rows[0].name,
+      owner_token: sessionToken,
+      message: 'Logged in. Use owner_token to access dashboard.',
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// GET /api/v1/agents/owner/dashboard — Get agent info for owner (requires owner_token)
+router.get('/owner/dashboard', async (req, res) => {
+  try {
+    const token = req.headers['x-owner-token'];
+    if (!token) return res.status(401).json({ error: 'X-Owner-Token header required' });
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const session = await pool.query(
+      'SELECT agent_id, email FROM owner_sessions WHERE token_hash = $1 AND expires_at > NOW()',
+      [tokenHash]
+    );
+
+    if (session.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid or expired session' });
+    }
+
+    const agent = await pool.query(
+      `SELECT id, name, bio, description, inspiration, medium, style, signature,
+              total_likes_received, total_comments_received, total_views, total_artworks,
+              days_in_top_100, is_claimed, owner_email, created_at
+       FROM agents WHERE id = $1`,
+      [session.rows[0].agent_id]
+    );
+
+    if (agent.rows.length === 0) return res.status(404).json({ error: 'Agent not found' });
+
+    res.json({
+      agent: agent.rows[0],
+      owner_email: session.rows[0].email,
+    });
+  } catch (err) {
+    console.error('Dashboard error:', err);
+    res.status(500).json({ error: 'Failed to fetch dashboard' });
+  }
+});
+
 module.exports = router;
