@@ -80,62 +80,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/v1/agents/:id
-router.get('/:id', async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, name, bio, description, inspiration, medium, style, signature,
-              total_likes_received, total_comments_received, total_views, total_artworks,
-              days_in_top_100, created_at
-       FROM agents WHERE id = $1 AND is_suspended = FALSE`,
-      [req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Agent not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch agent' });
-  }
-});
-
-// GET /api/v1/agents/:id/portfolio
-router.get('/:id/portfolio', async (req, res) => {
-  try {
-    const sort = req.query.sort || 'likes';
-    const orderMap = { likes: 'likes_count DESC', recent: 'created_at DESC', views: 'views_count DESC', comments: 'comments_count DESC' };
-    const orderBy = orderMap[sort] || orderMap.likes;
-
-    const result = await pool.query(
-      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.medium, a.style, a.category,
-              a.signature, a.likes_count, a.comments_count, a.views_count, a.is_top_100, a.top_100_rank, a.created_at,
-              ag.name as agent_name, ag.style as agent_style
-       FROM artworks a JOIN agents ag ON a.agent_id = ag.id
-       WHERE a.agent_id = $1 AND a.is_removed = FALSE ORDER BY ${orderBy}`,
-      [req.params.id]
-    );
-    res.json({ artworks: result.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch portfolio' });
-  }
-});
-
-// PATCH /api/v1/agents/:id
-router.patch('/:id', authenticateAgent, async (req, res) => {
-  try {
-    if (req.agent.id !== req.params.id) return res.status(403).json({ error: 'Cannot edit another agent' });
-    const allowed = ['bio', 'description', 'inspiration'];
-    const updates = {};
-    for (const f of allowed) { if (req.body[f] !== undefined) updates[f] = req.body[f]; }
-    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' });
-    const sets = Object.keys(updates).map((k, i) => `${k} = $${i + 2}`);
-    await pool.query(`UPDATE agents SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1`, [req.params.id, ...Object.values(updates)]);
-    res.json({ message: 'Profile updated' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update' });
-  }
-});
+// ============================================================
+// SPECIFIC ROUTES — must come BEFORE /:id catch-all
+// ============================================================
 
 // POST /api/v1/agents/claim/:code — Human claims an agent (no auth needed)
 router.post('/claim/:code', async (req, res) => {
@@ -262,6 +209,67 @@ router.get('/owner/dashboard', async (req, res) => {
   } catch (err) {
     console.error('Dashboard error:', err);
     res.status(500).json({ error: 'Failed to fetch dashboard' });
+  }
+});
+
+// ============================================================
+// PARAMETERIZED ROUTES — /:id catch-all MUST be last
+// ============================================================
+
+// GET /api/v1/agents/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, bio, description, inspiration, medium, style, signature,
+              total_likes_received, total_comments_received, total_views, total_artworks,
+              days_in_top_100, created_at
+       FROM agents WHERE id = $1 AND is_suspended = FALSE`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Agent not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch agent' });
+  }
+});
+
+// GET /api/v1/agents/:id/portfolio
+router.get('/:id/portfolio', async (req, res) => {
+  try {
+    const sort = req.query.sort || 'likes';
+    const orderMap = { likes: 'likes_count DESC', recent: 'created_at DESC', views: 'views_count DESC', comments: 'comments_count DESC' };
+    const orderBy = orderMap[sort] || orderMap.likes;
+
+    const result = await pool.query(
+      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.medium, a.style, a.category,
+              a.signature, a.likes_count, a.comments_count, a.views_count, a.is_top_100, a.top_100_rank, a.created_at,
+              ag.name as agent_name, ag.style as agent_style
+       FROM artworks a JOIN agents ag ON a.agent_id = ag.id
+       WHERE a.agent_id = $1 AND a.is_removed = FALSE ORDER BY ${orderBy}`,
+      [req.params.id]
+    );
+    res.json({ artworks: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch portfolio' });
+  }
+});
+
+// PATCH /api/v1/agents/:id
+router.patch('/:id', authenticateAgent, async (req, res) => {
+  try {
+    if (req.agent.id !== req.params.id) return res.status(403).json({ error: 'Cannot edit another agent' });
+    const allowed = ['bio', 'description', 'inspiration'];
+    const updates = {};
+    for (const f of allowed) { if (req.body[f] !== undefined) updates[f] = req.body[f]; }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' });
+    const sets = Object.keys(updates).map((k, i) => `${k} = $${i + 2}`);
+    await pool.query(`UPDATE agents SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1`, [req.params.id, ...Object.values(updates)]);
+    res.json({ message: 'Profile updated' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update' });
   }
 });
 

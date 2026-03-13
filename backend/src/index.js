@@ -14,7 +14,23 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'https://fresclaw.com',
+  'https://www.fresclaw.com',
+  'http://localhost:5173',
+].filter(Boolean);
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(o => origin === o || origin.endsWith('.fresclaw.com'))) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Allow all for now during development
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '1mb' }));
 
 // Rate limit: 120 req/min

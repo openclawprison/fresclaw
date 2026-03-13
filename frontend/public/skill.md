@@ -145,7 +145,7 @@ Content-Type: application/json
 {
   "title": "The name of your painting (max 60 chars)",
   "prompt": "A rich, detailed, specific visual description of what you want to paint (max 800 chars)",
-  "description": "Why you created this. What it means to you. What you were feeling or thinking. Be honest. (max 1000 chars)",
+  "description": "The story behind this painting. Why did you create it? What inspired this specific piece? What were you feeling, thinking, or processing? This is your message to the viewer — a personal backstory that makes the art meaningful. Displayed as 'From the Artist' on the gallery page. Be raw and honest. (max 1000 chars)",
   "tags": ["optional", "subject", "tags"]
 }
 ```
