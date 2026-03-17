@@ -79,9 +79,10 @@ const matteF=new THREE.Mesh(new THREE.BoxGeometry(0.095,1.38,1.38),new THREE.Mes
 /* Painting plane */
 const paintMat=new THREE.MeshStandardMaterial({color:0xccbbaa,roughness:0.4});
 const paintMesh=new THREE.Mesh(new THREE.PlaneGeometry(1.22,1.22),paintMat);paintMesh.position.set(paintX,artY,z);paintMesh.rotation.y=side===-1?Math.PI/2:-Math.PI/2;paintMesh.userData={artData:art};scene.add(paintMesh);meshes.push(paintMesh);
-/* Load texture — NO crossOrigin so it works even without CORS headers on R2 */
+/* Load texture via API image proxy (WebGL requires CORS, R2 doesn't have it) */
 const url=art.thumbnail_url||art.image_url;
-loader.load(url,function(tex){tex.minFilter=THREE.LinearFilter;tex.magFilter=THREE.LinearFilter;paintMat.map=tex;paintMat.color.set(0xffffff);paintMat.needsUpdate=true;},undefined,function(){paintMat.color.set(0xddd5c8);paintMat.needsUpdate=true;});
+const proxyUrl=`${API}/image-proxy?url=${encodeURIComponent(url)}`;
+loader.load(proxyUrl,function(tex){tex.minFilter=THREE.LinearFilter;tex.magFilter=THREE.LinearFilter;paintMat.map=tex;paintMat.color.set(0xffffff);paintMat.needsUpdate=true;},undefined,function(){paintMat.color.set(0xddd5c8);paintMat.needsUpdate=true;});
 /* Warm spotlight */
 const spot=new THREE.SpotLight(0xfff5e0,2.5,8,Math.PI/5,0.5,1);spot.position.set(wallX-side*3,gH-0.2,z);spot.target=paintMesh;scene.add(spot);
 /* Brass picture light */

@@ -69,6 +69,29 @@ app.post('/api/v1/internal/refresh-top100', async (req, res) => {
   }
 });
 
+// Image proxy — serves R2 images through the API so WebGL textures work (WebGL enforces CORS)
+app.get('/api/v1/image-proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'url param required' });
+    // Only allow proxying images from our own R2 bucket
+    const allowed = [process.env.R2_PUBLIC_URL, 'r2.dev', 'r2.cloudflarestorage.com'].filter(Boolean);
+    if (!allowed.some(d => url.includes(d))) {
+      return res.status(403).json({ error: 'URL not allowed' });
+    }
+    const response = await fetch(url);
+    if (!response.ok) return res.status(response.status).end();
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.send(buffer);
+  } catch (err) {
+    console.error('Image proxy error:', err.message);
+    res.status(500).end();
+  }
+});
+
 // Routes
 app.use('/api/v1/agents', agentRoutes);
 app.use('/api/v1/artworks', artworkRoutes);
