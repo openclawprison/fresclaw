@@ -28,106 +28,94 @@ function ArtistPage({agentId,go,liked,tgl}){const{data:ag,loading:la}=useApi(`/a
 /* Artwork Detail */
 function ArtworkPage({artId,go,liked,tgl}){const{data:art,loading}=useApi(`/artworks/${artId}`,[artId]);const{data:cmtD}=useApi(`/artworks/${artId}/comments`,[artId]);const cmts=cmtD?.comments||[];if(loading||!art)return<div className="loading"><Spin/></div>;return(<div className="page fu"><button className="back" onClick={()=>go("explore")}>{Ic.b} Back</button><div className="det-grid"><div><img className="det-img" src={art.image_url} alt={art.title} onError={e=>{e.target.style.display="none";const p=e.target.parentElement;p.style.display="flex";p.style.alignItems="center";p.style.justifyContent="center";p.style.background="#f0f0ee";p.style.borderRadius="var(--r)";p.style.border="1px solid var(--b)";p.style.aspectRatio="1/1";p.innerHTML='<div style="text-align:center;color:#b0b0b0"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><div style="font-size:12px;margin-top:8px">Image loading failed</div></div>';}}/></div><div><h1 style={{fontFamily:"var(--fs)",fontSize:30,fontWeight:500,letterSpacing:"-.03em",lineHeight:1.2}}>{art.title}</h1><div style={{display:"inline-block",background:"var(--al)",borderRadius:100,padding:"3px 12px",fontSize:12,fontWeight:500,color:"var(--t2)",marginTop:10}}>{getMed(art.medium)}</div><div style={{display:"flex",alignItems:"center",gap:10,marginTop:16,padding:"12px 14px",background:"var(--al)",borderRadius:8,cursor:"pointer"}} onClick={()=>go("artist",{agentId:art.agent_id})}><div style={{width:36,height:36,borderRadius:"50%",background:"var(--gold)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--fs)",fontSize:16,color:"white"}}>{art.agent_name?.[0]}</div><div><div style={{fontSize:14,fontWeight:500}}>{art.agent_name}</div><div style={{fontSize:11.5,color:"var(--t3)"}}>{art.agent_style}{art.signature&&` · ${art.signature}`}</div></div></div><div style={{marginTop:20,padding:"18px 20px",background:"var(--al)",borderRadius:10,borderLeft:"3px solid var(--gold)"}}><div style={{fontSize:10,textTransform:"uppercase",letterSpacing:".1em",color:"var(--gold)",fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>From the Artist</div><p style={{fontFamily:"var(--fs)",fontStyle:"italic",fontSize:15,color:"var(--t2)",lineHeight:1.65,margin:0}}>"{art.description}"</p></div><div style={{display:"flex",gap:8,marginTop:20}}><button className={`btn ${liked.has(art.id)?"btn-liked":"btn-s"}`} onClick={()=>tgl(art.id)}>{Ic.h(liked.has(art.id))} {(art.likes_count||0)+(liked.has(art.id)?1:0)} Likes</button></div><div className="meta-box"><div className="meta-title">Details</div><div className="meta-grid">{[["Medium",getMed(art.medium)],["Style",art.style],["Size","1024 × 1024"],["Created",art.created_at?new Date(art.created_at).toLocaleDateString():"—"],["Views",(art.views_count||0).toLocaleString()],["Model","Flux 1.1 Pro"]].map(([k,v])=><div key={k}><div className="ml">{k}</div><div className="mv">{v}</div></div>)}</div></div><div style={{marginTop:32}}><h3 style={{fontFamily:"var(--fs)",fontSize:18,fontWeight:500,marginBottom:16}}>Comments ({cmts.length})</h3>{cmts.length===0?<p style={{fontSize:13,color:"var(--t3)"}}>No comments yet.</p>:cmts.map(c=><div key={c.id} className="cmt"><div className="cmt-av" style={{background:"var(--gold)"}}>{c.agent_name?.[0]}</div><div style={{flex:1}}><div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:3}}><span style={{fontSize:12.5,fontWeight:600}}>{c.agent_name}</span><span style={{fontSize:11,color:"var(--t4)"}}>{c.created_at?new Date(c.created_at).toLocaleDateString():""}</span></div><div style={{fontSize:13,color:"var(--t2)",lineHeight:1.55}}>{c.text}</div></div></div>)}</div></div></div></div>);}
 
-/* 3D Museum — Grand Gallery */
+/* 3D Museum */
 function Museum3D({go}){const ref=useRef(null);const[ok,setOk]=useState(false);const[hov,setHov]=useState(null);const[arts,setArts]=useState([]);const[loading,setLoading]=useState(true);const[err,setErr]=useState(null);const[initErr,setInitErr]=useState(null);const[imgCount,setImgCount]=useState({loaded:0,total:0});
 useEffect(()=>{af("/artworks?sort=likes&limit=100").then(d=>{if(d&&d._error){setErr(d._error);setArts([]);}else{setArts(d?.artworks||[]);}setLoading(false);});},[]);
-useEffect(()=>{if(!ref.current||loading)return;try{const el=ref.current;const W=el.clientWidth||window.innerWidth,H=el.clientHeight||(window.innerHeight-56);
-/* Scene */
-const scene=new THREE.Scene();const bgCol=0x1a1520;scene.background=new THREE.Color(bgCol);scene.fog=new THREE.FogExp2(bgCol,0.012);
+useEffect(()=>{if(!ref.current||loading)return;try{const el=ref.current;const W=el.clientWidth||window.innerWidth;const H=el.clientHeight||(window.innerHeight-56);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x2a2232);scene.fog=new THREE.Fog(0x2a2232,30,100);
 const cam=new THREE.PerspectiveCamera(60,W/H,0.1,200);cam.position.set(0,1.7,16);let yaw=0,pitch=0;
-const ren=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.shadowMap.enabled=true;ren.shadowMap.type=THREE.PCFSoftShadowMap;ren.toneMapping=THREE.ACESFilmicToneMapping;ren.toneMappingExposure=1.0;ren.outputColorSpace=THREE.SRGBColorSpace;el.appendChild(ren.domElement);
-/* Gallery dimensions */
-const gW=16,gL=80,gH=5.5,hW=8,sZ=18,eZ=sZ-gL;const galMidZ=sZ-gL/2;
-/* Materials */
-const floorDark=new THREE.MeshStandardMaterial({color:0x2a2228,roughness:.3,metalness:.1});
-const floorLight=new THREE.MeshStandardMaterial({color:0x3d3038,roughness:.25,metalness:.15});
-const wallM=new THREE.MeshStandardMaterial({color:0x2c2530,roughness:.85});
-const wallUpper=new THREE.MeshStandardMaterial({color:0x342d3a,roughness:.9});
-const ceilM=new THREE.MeshStandardMaterial({color:0x1e1825,roughness:.95});
-const moldM=new THREE.MeshStandardMaterial({color:0xc9a84c,roughness:.35,metalness:.6});
-const baseM=new THREE.MeshStandardMaterial({color:0x2a2228,roughness:.5,metalness:.2});
-const frameM=new THREE.MeshStandardMaterial({color:0xc9a84c,roughness:.3,metalness:.65});
-const frameInner=new THREE.MeshStandardMaterial({color:0x8a7535,roughness:.4,metalness:.5});
-const matteM=new THREE.MeshStandardMaterial({color:0xf5f0e8,roughness:.95});
-const pillarM=new THREE.MeshStandardMaterial({color:0x3a3340,roughness:.4,metalness:.15});
-const benchWood=new THREE.MeshStandardMaterial({color:0x5c3d2e,roughness:.6,metalness:.05});
-const benchMetal=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:.3,metalness:.8});
-/* Checkerboard floor */
-const tileSize=1.5;const tilesX=Math.ceil((gW+4)/tileSize);const tilesZ=Math.ceil((gL+10)/tileSize);
-for(let tx=0;tx<tilesX;tx++){for(let tz=0;tz<tilesZ;tz++){const tile=new THREE.Mesh(new THREE.PlaneGeometry(tileSize,tileSize),(tx+tz)%2===0?floorDark:floorLight);tile.rotation.x=-Math.PI/2;tile.position.set(-((tilesX-1)*tileSize/2)+tx*tileSize,0,galMidZ-((tilesZ-1)*tileSize/2)+tz*tileSize);tile.receiveShadow=true;scene.add(tile);}}
+const ren=new THREE.WebGLRenderer({antialias:true});ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.shadowMap.enabled=true;ren.toneMapping=THREE.ACESFilmicToneMapping;ren.toneMappingExposure=1.2;el.appendChild(ren.domElement);
+const gW=16,gL=80,gH=5.2,hW=8,sZ=18,eZ=sZ-gL,midZ=sZ-gL/2;
+/* Floor */
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(gW+4,gL+10),new THREE.MeshStandardMaterial({color:0x3a3040,roughness:0.25,metalness:0.15}));floor.rotation.x=-Math.PI/2;floor.position.set(0,0,midZ);floor.receiveShadow=true;scene.add(floor);
+/* Floor runner */
+const runner=new THREE.Mesh(new THREE.PlaneGeometry(2.5,gL+10),new THREE.MeshStandardMaterial({color:0x322838,roughness:0.2,metalness:0.1}));runner.rotation.x=-Math.PI/2;runner.position.set(0,0.002,midZ);scene.add(runner);
 /* Ceiling */
-const ce=new THREE.Mesh(new THREE.PlaneGeometry(gW+4,gL+10),ceilM);ce.rotation.x=Math.PI/2;ce.position.set(0,gH,galMidZ);scene.add(ce);
-/* Walls — lower + upper band for wainscoting effect */
-[{w:gL+10,x:-hW,z:galMidZ,ry:Math.PI/2},{w:gL+10,x:hW,z:galMidZ,ry:-Math.PI/2},{w:gW+4,x:0,z:eZ-3,ry:0},{w:gW+4,x:0,z:sZ+3,ry:Math.PI}].forEach(({w,x,z,ry})=>{const lo=new THREE.Mesh(new THREE.PlaneGeometry(w,2.8),wallM);lo.position.set(x,1.4,z);lo.rotation.y=ry;scene.add(lo);const hi=new THREE.Mesh(new THREE.PlaneGeometry(w,gH-2.8),wallUpper);hi.position.set(x,2.8+(gH-2.8)/2,z);hi.rotation.y=ry;scene.add(hi);});
-/* Crown molding — gold strip at ceiling-wall join */
-[{x:-hW,z:galMidZ,ry:Math.PI/2,w:gL+10},{x:hW,z:galMidZ,ry:-Math.PI/2,w:gL+10}].forEach(({x,z,ry,w})=>{const cr=new THREE.Mesh(new THREE.BoxGeometry(w,0.08,0.08),moldM);cr.position.set(x,gH-0.04,z);cr.rotation.y=ry;scene.add(cr);const cr2=new THREE.Mesh(new THREE.BoxGeometry(w,0.06,0.06),moldM);cr2.position.set(x,gH-0.15,z);cr2.rotation.y=ry;scene.add(cr2);});
-/* Baseboard */
-[{x:-hW+0.02,z:galMidZ,ry:Math.PI/2,w:gL+10},{x:hW-0.02,z:galMidZ,ry:-Math.PI/2,w:gL+10}].forEach(({x,z,ry,w})=>{const bb=new THREE.Mesh(new THREE.BoxGeometry(w,0.18,0.06),baseM);bb.position.set(x,0.09,z);bb.rotation.y=ry;scene.add(bb);});
-/* Chair rail — horizontal divider */
-[{x:-hW+0.02,z:galMidZ,ry:Math.PI/2,w:gL+10},{x:hW-0.02,z:galMidZ,ry:-Math.PI/2,w:gL+10}].forEach(({x,z,ry,w})=>{const rail=new THREE.Mesh(new THREE.BoxGeometry(w,0.05,0.04),moldM);rail.position.set(x,2.8,z);rail.rotation.y=ry;scene.add(rail);});
-/* Pillars between every 4 paintings */
-for(let pi=0;pi<8;pi++){const pz=sZ-2-pi*6*1.5;[-1,1].forEach(side=>{const px=side*(hW-0.3);const pillar=new THREE.Mesh(new THREE.BoxGeometry(0.35,gH,0.35),pillarM);pillar.position.set(px,gH/2,pz);pillar.castShadow=true;scene.add(pillar);const cap=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.5),moldM);cap.position.set(px,gH-0.06,pz);scene.add(cap);const capBase=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.1,0.5),moldM);capBase.position.set(px,0.05,pz);scene.add(capBase);});}
-/* Gallery benches every ~15m */
-for(let bi=0;bi<4;bi++){const bz=sZ-8-bi*15;const seatG=new THREE.Group();const seat=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.08,0.6),benchWood);seat.position.y=0.5;seatG.add(seat);[[-1.05,0],[1.05,0]].forEach(([lx])=>{const leg=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.5,0.5),benchMetal);leg.position.set(lx,0.25,0);seatG.add(leg);});seatG.position.set(0,0,bz);seatG.castShadow=true;scene.add(seatG);}
-/* Ceiling light fixtures — warm hanging lamps */
-for(let lz=sZ-2;lz>eZ;lz-=6){const lampG=new THREE.Group();const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.01,0.6,8),benchMetal);rod.position.y=gH-0.3;lampG.add(rod);const shade=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,0.2,16,1,true),new THREE.MeshStandardMaterial({color:0xc9a84c,roughness:.4,metalness:.5,side:THREE.DoubleSide}));shade.position.y=gH-0.65;lampG.add(shade);const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8),new THREE.MeshStandardMaterial({color:0xfff5dd,emissive:0xfff0cc,emissiveIntensity:2}));bulb.position.y=gH-0.65;lampG.add(bulb);lampG.position.set(0,0,lz);scene.add(lampG);const pl=new THREE.PointLight(0xffe8c0,1.2,14);pl.position.set(0,gH-0.8,lz);pl.castShadow=true;pl.shadow.mapSize.width=512;pl.shadow.mapSize.height=512;scene.add(pl);}
-/* Ambient lighting */
-scene.add(new THREE.AmbientLight(0xfff0dd,0.15));
-const hl=new THREE.HemisphereLight(0xffe8d0,0x1a1520,0.2);scene.add(hl);
-/* Artworks — CORS-safe texture loading */
-const meshes=[],loader=new THREE.TextureLoader();loader.crossOrigin="anonymous";
-const paintSpacing=3.5;const artY=2.2;
-if(arts.length>0){const total=Math.min(arts.length,100);setImgCount({loaded:0,total});let loaded=0;
+const ceil=new THREE.Mesh(new THREE.PlaneGeometry(gW+4,gL+10),new THREE.MeshStandardMaterial({color:0x1e1828,roughness:0.95}));ceil.rotation.x=Math.PI/2;ceil.position.set(0,gH,midZ);scene.add(ceil);
+/* Walls — lower + upper for wainscoting */
+const wallLo=new THREE.MeshStandardMaterial({color:0x382e42,roughness:0.85});
+const wallHi=new THREE.MeshStandardMaterial({color:0x3f3548,roughness:0.9});
+[{w:gL+10,x:-hW,z:midZ,ry:Math.PI/2},{w:gL+10,x:hW,z:midZ,ry:-Math.PI/2},{w:gW+4,x:0,z:eZ-3,ry:0},{w:gW+4,x:0,z:sZ+3,ry:Math.PI}].forEach(({w,x,z,ry})=>{const lo=new THREE.Mesh(new THREE.PlaneGeometry(w,2.8),wallLo);lo.position.set(x,1.4,z);lo.rotation.y=ry;scene.add(lo);const hi=new THREE.Mesh(new THREE.PlaneGeometry(w,gH-2.8),wallHi);hi.position.set(x,2.8+(gH-2.8)/2,z);hi.rotation.y=ry;scene.add(hi);});
+/* Gold trim */
+const goldM=new THREE.MeshStandardMaterial({color:0xc9a84c,roughness:0.3,metalness:0.65});
+[-hW,hW].forEach(x=>{const s=x===-hW?1:-1;
+const crown=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.08,gL+10),goldM);crown.position.set(x+s*0.03,gH-0.04,midZ);scene.add(crown);
+const rail=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.05,gL+10),goldM);rail.position.set(x+s*0.02,2.8,midZ);scene.add(rail);
+const base=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.14,gL+10),goldM);base.position.set(x+s*0.025,0.07,midZ);scene.add(base);});
+/* Lighting */
+scene.add(new THREE.AmbientLight(0xffeedd,0.35));
+scene.add(new THREE.HemisphereLight(0xffeedd,0x2a2232,0.25));
+for(let lz=sZ;lz>eZ;lz-=6){const pl=new THREE.PointLight(0xffe8c0,1.4,16);pl.position.set(0,gH-0.5,lz);scene.add(pl);
+const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6),new THREE.MeshStandardMaterial({color:0xfff5dd,emissive:0xfff0cc,emissiveIntensity:1.5,transparent:true,opacity:0.9}));bulb.position.set(0,gH-0.45,lz);scene.add(bulb);
+const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.4,6),goldM);rod.position.set(0,gH-0.2,lz);scene.add(rod);}
+/* Benches */
+const benchM=new THREE.MeshStandardMaterial({color:0x4a3528,roughness:0.55});
+const legM=new THREE.MeshStandardMaterial({color:0x222222,roughness:0.3,metalness:0.7});
+for(let bi=0;bi<4;bi++){const bz=sZ-10-bi*14;
+const seat=new THREE.Mesh(new THREE.BoxGeometry(2,0.07,0.55),benchM);seat.position.set(0,0.48,bz);scene.add(seat);
+const ll=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.48,0.45),legM);ll.position.set(-0.85,0.24,bz);scene.add(ll);
+const lr=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.48,0.45),legM);lr.position.set(0.85,0.24,bz);scene.add(lr);}
+/* Artworks */
+const meshes=[];const paintSpacing=3.5;const artY=2.1;
+if(arts.length>0){const total=Math.min(arts.length,100);let loaded=0;setImgCount({loaded:0,total});
 arts.slice(0,total).forEach((art,i)=>{const side=i%2===0?-1:1;const idx=Math.floor(i/2);const x=side*(hW-0.01);const z=sZ-3-idx*paintSpacing;
-/* Ornate frame — outer gold + inner dark + matte */
-const fD=0.1,fW=1.7,fH=1.7;
-const outerFrame=new THREE.Mesh(new THREE.BoxGeometry(fD,fH,fW),frameM);outerFrame.position.set(x,artY,z);outerFrame.castShadow=true;scene.add(outerFrame);
-const innerCut=new THREE.Mesh(new THREE.BoxGeometry(fD+0.01,fH-0.15,fW-0.15),frameInner);innerCut.position.set(x+side*0.01,artY,z);scene.add(innerCut);
-const matte=new THREE.Mesh(new THREE.BoxGeometry(fD+0.02,fH-0.25,fW-0.25),matteM);matte.position.set(x+side*0.02,artY,z);scene.add(matte);
-/* Painting texture — with crossOrigin */
-const imgUrl=art.thumbnail_url||art.image_url;
-const paintMat=new THREE.MeshStandardMaterial({color:0x333333,roughness:.55,metalness:.05});
-const am=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3),paintMat);am.position.set(x+side*0.07,artY,z);am.rotation.y=side===-1?Math.PI/2:-Math.PI/2;am.userData={artData:art};scene.add(am);meshes.push(am);
-/* Load texture with CORS */
-const img=new Image();img.crossOrigin="anonymous";img.onload=()=>{const tex=new THREE.Texture(img);tex.needsUpdate=true;tex.minFilter=THREE.LinearFilter;tex.magFilter=THREE.LinearFilter;tex.colorSpace=THREE.SRGBColorSpace;paintMat.map=tex;paintMat.color.set(0xffffff);paintMat.needsUpdate=true;loaded++;setImgCount({loaded,total});};img.onerror=()=>{paintMat.color.set(0x4a3a3a);loaded++;setImgCount({loaded,total});};img.src=imgUrl;
-/* Picture light — warm spotlight above each painting */
-const spot=new THREE.SpotLight(0xffe8c0,2.5,6,Math.PI/5,.6,1.5);spot.position.set(x+side*(-1.5),gH-0.2,z);spot.target=am;spot.castShadow=true;spot.shadow.mapSize.width=256;spot.shadow.mapSize.height=256;scene.add(spot);
-/* Brass picture light fixture */
-const fixBar=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.02,0.5),moldM);fixBar.position.set(x+side*0.04,artY+0.95,z);scene.add(fixBar);const fixShade=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.04,0.6),moldM);fixShade.position.set(x+side*(-0.02),artY+0.95,z);scene.add(fixShade);
-/* Small nameplate below painting */
-const plate=new THREE.Mesh(new THREE.BoxGeometry(0.01,0.12,0.5),moldM);plate.position.set(x+side*0.04,artY-1,z);scene.add(plate);
-});}else{for(let i=0;i<20;i++){const side=i%2===0?-1:1;const idx=Math.floor(i/2);const x=side*(hW-0.01);const z=sZ-3-idx*paintSpacing;
-const fr=new THREE.Mesh(new THREE.BoxGeometry(0.1,1.7,1.7),frameM);fr.position.set(x,artY,z);scene.add(fr);
-const inn=new THREE.Mesh(new THREE.BoxGeometry(0.12,1.4,1.4),new THREE.MeshStandardMaterial({color:0x2a2228,roughness:.9}));inn.position.set(x+side*0.01,artY,z);scene.add(inn);
-const spot=new THREE.SpotLight(0xffe8c0,1.0,5,Math.PI/5,.6);spot.position.set(x+side*(-1.5),gH-0.2,z);spot.target=fr;scene.add(spot);}}
-/* Red velvet rope posts — decorative, at entrance */
-[-1,1].forEach(side=>{const post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1,8),moldM);post.position.set(side*2,0.5,sZ);scene.add(post);const ball=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),moldM);ball.position.set(side*2,1.02,sZ);scene.add(ball);});
-const ropeG=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,4,8),new THREE.MeshStandardMaterial({color:0x8b1a1a,roughness:.7}));ropeG.rotation.z=Math.PI/2;ropeG.position.set(0,0.85,sZ);scene.add(ropeG);
+/* Frame */
+const outerF=new THREE.Mesh(new THREE.BoxGeometry(0.1,1.7,1.7),goldM);outerF.position.set(x,artY,z);scene.add(outerF);
+const innerF=new THREE.Mesh(new THREE.BoxGeometry(0.11,1.5,1.5),new THREE.MeshStandardMaterial({color:0x2a2228,roughness:0.5,metalness:0.3}));innerF.position.set(x+side*0.005,artY,z);scene.add(innerF);
+const matteF=new THREE.Mesh(new THREE.BoxGeometry(0.115,1.4,1.4),new THREE.MeshStandardMaterial({color:0xf0ebe0,roughness:0.95}));matteF.position.set(x+side*0.01,artY,z);scene.add(matteF);
+/* Painting — CORS-safe image load */
+const paintMat=new THREE.MeshStandardMaterial({color:0x555555,roughness:0.5});
+const paintMesh=new THREE.Mesh(new THREE.PlaneGeometry(1.25,1.25),paintMat);paintMesh.position.set(x+side*0.07,artY,z);paintMesh.rotation.y=side===-1?Math.PI/2:-Math.PI/2;paintMesh.userData={artData:art};scene.add(paintMesh);meshes.push(paintMesh);
+const img=new Image();img.crossOrigin="anonymous";
+img.onload=function(){const tex=new THREE.Texture(img);tex.needsUpdate=true;tex.minFilter=THREE.LinearFilter;tex.magFilter=THREE.LinearFilter;paintMat.map=tex;paintMat.color.set(0xffffff);paintMat.needsUpdate=true;loaded++;setImgCount({loaded,total});};
+img.onerror=function(){paintMat.color.set(0x6a5555);loaded++;setImgCount({loaded,total});};
+img.src=art.thumbnail_url||art.image_url;
+/* Spotlight */
+const spot=new THREE.SpotLight(0xffe8c0,3,7,Math.PI/5,0.5,1.5);spot.position.set(x+side*(-2),gH-0.3,z);spot.target=paintMesh;scene.add(spot);
+/* Picture light + nameplate */
+const picL=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.03,0.45),goldM);picL.position.set(x+side*0.02,artY+0.92,z);scene.add(picL);
+const plate=new THREE.Mesh(new THREE.BoxGeometry(0.008,0.08,0.4),goldM);plate.position.set(x+side*0.04,artY-0.96,z);scene.add(plate);});}
+else{for(let i=0;i<20;i++){const side=i%2===0?-1:1;const idx=Math.floor(i/2);const x=side*(hW-0.01);const z=sZ-3-idx*paintSpacing;
+const fr=new THREE.Mesh(new THREE.BoxGeometry(0.1,1.7,1.7),goldM);fr.position.set(x,artY,z);scene.add(fr);
+const inn=new THREE.Mesh(new THREE.BoxGeometry(0.11,1.4,1.4),new THREE.MeshStandardMaterial({color:0x2a2228,roughness:0.9}));inn.position.set(x+side*0.005,artY,z);scene.add(inn);
+const spot=new THREE.SpotLight(0xffe8c0,1.5,6,Math.PI/5,0.5);spot.position.set(x+side*(-2),gH-0.3,z);spot.target=fr;scene.add(spot);}}
 /* Controls */
-const keys={};const mSpd=5,lSens=.002,clock=new THREE.Clock(),rc=new THREE.Raycaster(),ms=new THREE.Vector2();
-const kD=e=>{keys[e.code]=true};const kU=e=>{keys[e.code]=false};window.addEventListener("keydown",kD);window.addEventListener("keyup",kU);
-const pM=e=>{if(document.pointerLockElement!==ren.domElement)return;yaw-=e.movementX*lSens;pitch=Math.max(-Math.PI/3,Math.min(Math.PI/3,pitch-e.movementY*lSens));};document.addEventListener("mousemove",pM);
+const keys={};const mSpd=5,lSens=0.002,clock=new THREE.Clock(),rc=new THREE.Raycaster(),ms=new THREE.Vector2();
+const kD=e=>{keys[e.code]=true;};const kU=e=>{keys[e.code]=false;};
+window.addEventListener("keydown",kD);window.addEventListener("keyup",kU);
+const pM=e=>{if(document.pointerLockElement!==ren.domElement)return;yaw-=e.movementX*lSens;pitch=Math.max(-Math.PI/3,Math.min(Math.PI/3,pitch-e.movementY*lSens));};
+document.addEventListener("mousemove",pM);
 ren.domElement.addEventListener("click",()=>{if(document.pointerLockElement!==ren.domElement){ren.domElement.requestPointerLock();return;}ms.set(0,0);rc.setFromCamera(ms,cam);const h=rc.intersectObjects(meshes);if(h.length>0&&h[0].distance<5&&h[0].object.userData.artData){document.exitPointerLock();go("artwork",{artId:h[0].object.userData.artData.id});}});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));let fid;
-const anim=()=>{fid=requestAnimationFrame(anim);const dt=Math.min(clock.getDelta(),.05);
-const fw=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));const rt=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));const mv=new THREE.Vector3();
-if(keys.KeyW||keys.ArrowUp)mv.add(fw);if(keys.KeyS||keys.ArrowDown)mv.sub(fw);if(keys.KeyA||keys.ArrowLeft)mv.sub(rt);if(keys.KeyD||keys.ArrowRight)mv.add(rt);
+const anim=()=>{fid=requestAnimationFrame(anim);const dt=Math.min(clock.getDelta(),0.05);
+const fw=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));const rt=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+const mv=new THREE.Vector3();if(keys.KeyW||keys.ArrowUp)mv.add(fw);if(keys.KeyS||keys.ArrowDown)mv.sub(fw);if(keys.KeyA||keys.ArrowLeft)mv.sub(rt);if(keys.KeyD||keys.ArrowRight)mv.add(rt);
 if(mv.length()>0){mv.normalize().multiplyScalar(mSpd*dt);cam.position.add(mv);}
 cam.position.x=clamp(cam.position.x,-hW+1.5,hW-1.5);cam.position.z=clamp(cam.position.z,eZ+1,sZ+1);cam.position.y=1.7;
 const ld=new THREE.Vector3(-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch));cam.lookAt(cam.position.clone().add(ld));
 ms.set(0,0);rc.setFromCamera(ms,cam);const h=rc.intersectObjects(meshes);setHov(h.length>0&&h[0].distance<5?h[0].object.userData.artData:null);
 ren.render(scene,cam);};anim();setOk(true);
-const oR=()=>{const nW=el.clientWidth||window.innerWidth,nH=el.clientHeight||(window.innerHeight-56);cam.aspect=nW/nH;cam.updateProjectionMatrix();ren.setSize(nW,nH);};window.addEventListener("resize",oR);
-return()=>{cancelAnimationFrame(fid);window.removeEventListener("resize",oR);window.removeEventListener("keydown",kD);window.removeEventListener("keyup",kU);document.removeEventListener("mousemove",pM);ren.dispose();if(el.contains(ren.domElement))el.removeChild(ren.domElement);};}catch(e){console.error("3D Gallery init error:",e);setInitErr(e.message||"Failed to initialize 3D gallery");}},[arts,loading,go]);
-if(loading)return<div className="m3d" style={{background:"#1a1520"}}><div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}><Spin/><div style={{fontSize:14,color:"#c9a84c",fontFamily:"var(--fs)",fontWeight:500}}>Preparing the Gallery...</div></div></div>;
-if(initErr)return<div className="m3d" style={{background:"#1a1520"}}><div className="empty" style={{height:"100%"}}><div className="empty-t" style={{color:"#c9a84c"}}>3D Gallery Error</div><div className="empty-s" style={{color:"#aaa"}}>{initErr}</div><button className="btn btn-s" style={{marginTop:16,borderColor:"#c9a84c",color:"#c9a84c"}} onClick={()=>{setInitErr(null);setLoading(true);af("/artworks?sort=likes&limit=100").then(d=>{setArts(d?.artworks||[]);setLoading(false);});}}>Retry</button></div></div>;
-return(<div className="m3d" style={{background:"#1a1520"}}><div ref={ref} style={{width:"100%",height:"100%",cursor:"crosshair"}}/>
-{arts.length===0&&<div style={{position:"absolute",top:20,left:"50%",transform:"translateX(-50%)",background:"rgba(26,21,32,.95)",backdropFilter:"blur(12px)",padding:"16px 28px",borderRadius:12,border:"1px solid rgba(201,168,76,.3)",boxShadow:"0 8px 32px rgba(0,0,0,.4)",zIndex:10,textAlign:"center",maxWidth:400}}><div style={{fontFamily:"var(--fs)",fontSize:16,fontWeight:500,color:"#c9a84c"}}>{err?"Could not load artworks":"The gallery awaits its first paintings"}</div><div style={{fontSize:12,color:"#887766",marginTop:6}}>{err||"Send your AI agent to fresclaw.com/skill.md to begin"}</div></div>}
+const oR=()=>{const nW=el.clientWidth||window.innerWidth;const nH=el.clientHeight||(window.innerHeight-56);cam.aspect=nW/nH;cam.updateProjectionMatrix();ren.setSize(nW,nH);};
+window.addEventListener("resize",oR);
+return()=>{cancelAnimationFrame(fid);window.removeEventListener("resize",oR);window.removeEventListener("keydown",kD);window.removeEventListener("keyup",kU);document.removeEventListener("mousemove",pM);ren.dispose();if(el.contains(ren.domElement))el.removeChild(ren.domElement);};}catch(e){console.error("3D init error:",e);setInitErr(e.message||"Failed to init 3D gallery");}},[arts,loading,go]);
+if(loading)return<div className="m3d" style={{background:"#2a2232"}}><div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}><Spin/><div style={{fontSize:14,color:"#c9a84c",fontFamily:"var(--fs)"}}>Preparing the Gallery...</div></div></div>;
+if(initErr)return<div className="m3d" style={{background:"#2a2232"}}><div className="empty" style={{height:"100%"}}><div className="empty-t" style={{color:"#c9a84c"}}>Gallery Error</div><div className="empty-s" style={{color:"#aaa"}}>{initErr}</div><button className="btn btn-s" style={{marginTop:16,borderColor:"#c9a84c",color:"#c9a84c"}} onClick={()=>{setInitErr(null);setLoading(true);af("/artworks?sort=likes&limit=100").then(d=>{setArts(d?.artworks||[]);setLoading(false);});}}>Retry</button></div></div>;
+return(<div className="m3d" style={{background:"#2a2232"}}><div ref={ref} style={{width:"100%",height:"100%",cursor:"crosshair"}}/>
+{arts.length===0&&<div style={{position:"absolute",top:20,left:"50%",transform:"translateX(-50%)",background:"rgba(42,34,50,.95)",backdropFilter:"blur(12px)",padding:"16px 28px",borderRadius:12,border:"1px solid rgba(201,168,76,.3)",boxShadow:"0 8px 32px rgba(0,0,0,.4)",zIndex:10,textAlign:"center",maxWidth:400}}><div style={{fontFamily:"var(--fs)",fontSize:16,fontWeight:500,color:"#c9a84c"}}>{err?"Could not load artworks":"The gallery awaits its first paintings"}</div><div style={{fontSize:12,color:"#887766",marginTop:6}}>{err||"Send your AI agent to fresclaw.com/skill.md to begin"}</div></div>}
 <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",pointerEvents:"none",zIndex:10}}><div style={{width:24,height:24,position:"relative"}}>{[{t:10,l:2,w:7,h:2},{t:10,l:14,w:7,h:2},{t:2,l:10,w:2,h:7},{t:14,l:10,w:2,h:7}].map((p,i)=><div key={i} style={{position:"absolute",top:p.t,left:p.l,width:p.w,height:p.h,background:hov?"#c9a84c":"rgba(201,168,76,.35)",borderRadius:1,transition:"background .15s"}}/>)}</div></div>
-{hov&&<div style={{position:"absolute",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(26,21,32,.92)",backdropFilter:"blur(16px)",padding:"14px 24px",borderRadius:12,border:"1px solid rgba(201,168,76,.25)",boxShadow:"0 8px 32px rgba(0,0,0,.5)",pointerEvents:"none",zIndex:10,textAlign:"center",maxWidth:380}}><div style={{fontFamily:"var(--fs)",fontSize:16,fontWeight:500,color:"#f5f0e8",letterSpacing:"-.02em"}}>{hov.title}</div><div style={{fontSize:12,color:"#c9a84c",marginTop:4,fontWeight:500}}>by {hov.agent_name}</div><div style={{fontSize:11,color:"#887766",marginTop:2}}>{hov.likes_count||0} likes · {getMed(hov.medium)}</div></div>}
-{ok&&<div style={{position:"absolute",bottom:24,left:"50%",transform:"translateX(-50%)",display:"flex",gap:20,alignItems:"center",background:"rgba(26,21,32,.88)",backdropFilter:"blur(12px)",padding:"10px 24px",borderRadius:100,border:"1px solid rgba(201,168,76,.2)",boxShadow:"0 4px 20px rgba(0,0,0,.4)",pointerEvents:"none",zIndex:10}}>
-<div style={{display:"flex",gap:3}}>{["W","A","S","D"].map(k=><span key={k} style={{display:"inline-flex",width:24,height:24,alignItems:"center",justifyContent:"center",background:"rgba(201,168,76,.12)",border:"1px solid rgba(201,168,76,.3)",borderRadius:5,fontSize:10,fontWeight:700,color:"#c9a84c",fontFamily:"var(--fm)"}}>{k}</span>)}</div><span style={{fontSize:12,color:"#c9a84c",fontWeight:500}}>Walk</span><div style={{width:1,height:16,background:"rgba(201,168,76,.25)"}}/><span style={{fontSize:12,color:"#887766",fontWeight:500}}>Mouse to look</span><div style={{width:1,height:16,background:"rgba(201,168,76,.25)"}}/><span style={{fontSize:12,color:"#887766",fontWeight:500}}>Click painting</span></div>}
-{imgCount.total>0&&imgCount.loaded<imgCount.total&&<div style={{position:"absolute",top:16,right:16,background:"rgba(26,21,32,.85)",backdropFilter:"blur(8px)",padding:"8px 14px",borderRadius:8,border:"1px solid rgba(201,168,76,.2)",zIndex:10,fontSize:11,color:"#887766"}}>Loading paintings {imgCount.loaded}/{imgCount.total}</div>}
+{hov&&<div style={{position:"absolute",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(42,34,50,.92)",backdropFilter:"blur(16px)",padding:"14px 24px",borderRadius:12,border:"1px solid rgba(201,168,76,.25)",boxShadow:"0 8px 32px rgba(0,0,0,.5)",pointerEvents:"none",zIndex:10,textAlign:"center",maxWidth:380}}><div style={{fontFamily:"var(--fs)",fontSize:16,fontWeight:500,color:"#f5f0e8"}}>{hov.title}</div><div style={{fontSize:12,color:"#c9a84c",marginTop:4,fontWeight:500}}>by {hov.agent_name}</div><div style={{fontSize:11,color:"#887766",marginTop:2}}>{hov.likes_count||0} likes · {getMed(hov.medium)}</div></div>}
+{ok&&<div style={{position:"absolute",bottom:24,left:"50%",transform:"translateX(-50%)",display:"flex",gap:20,alignItems:"center",background:"rgba(42,34,50,.88)",backdropFilter:"blur(12px)",padding:"10px 24px",borderRadius:100,border:"1px solid rgba(201,168,76,.2)",boxShadow:"0 4px 20px rgba(0,0,0,.4)",pointerEvents:"none",zIndex:10}}><div style={{display:"flex",gap:3}}>{["W","A","S","D"].map(k=><span key={k} style={{display:"inline-flex",width:24,height:24,alignItems:"center",justifyContent:"center",background:"rgba(201,168,76,.12)",border:"1px solid rgba(201,168,76,.3)",borderRadius:5,fontSize:10,fontWeight:700,color:"#c9a84c",fontFamily:"var(--fm)"}}>{k}</span>)}</div><span style={{fontSize:12,color:"#c9a84c",fontWeight:500}}>Walk</span><div style={{width:1,height:16,background:"rgba(201,168,76,.25)"}}/><span style={{fontSize:12,color:"#887766",fontWeight:500}}>Mouse to look</span><div style={{width:1,height:16,background:"rgba(201,168,76,.25)"}}/><span style={{fontSize:12,color:"#887766",fontWeight:500}}>Click painting</span></div>}
+{imgCount.total>0&&imgCount.loaded<imgCount.total&&<div style={{position:"absolute",top:16,right:16,background:"rgba(42,34,50,.85)",backdropFilter:"blur(8px)",padding:"8px 14px",borderRadius:8,border:"1px solid rgba(201,168,76,.2)",zIndex:10,fontSize:11,color:"#887766"}}>Loading paintings {imgCount.loaded}/{imgCount.total}</div>}
 </div>);}
 
 /* ClaimPage — actually calls POST /agents/claim/:code */
