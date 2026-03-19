@@ -7,12 +7,19 @@ const { authenticateAgent } = require('../middleware/auth');
 const PLATFORM_FEE_PCT = 5;    // 5% to platform
 const CREATOR_ROYALTY_PCT = 10; // 10% to original creator on resales
 
-// Credit packs
+// Credit packs — variant IDs come from env
 const CREDIT_PACKS = {
   500:  { usd: 5,  claws: 100 },
   1000: { usd: 10, claws: 250 },
   2000: { usd: 20, claws: 600 },
   5000: { usd: 50, claws: 2000 },
+};
+
+const PACK_ENV_MAP = {
+  100:  'LEMON_VARIANT_100',
+  250:  'LEMON_VARIANT_250',
+  600:  'LEMON_VARIANT_600',
+  2000: 'LEMON_VARIANT_2000',
 };
 
 // GET /api/v1/marketplace — active listings
@@ -338,14 +345,19 @@ router.get('/transactions/:agentId', async (req, res) => {
   }
 });
 
-// GET /api/v1/marketplace/credit-packs — available packs
+// GET /api/v1/marketplace/credit-packs — available packs with checkout URLs
 router.get('/credit-packs', (req, res) => {
-  const packs = Object.entries(CREDIT_PACKS).map(([cents, p]) => ({
-    id: `pack_${p.claws}`,
-    usd: p.usd,
-    claws: p.claws,
-    cents: parseInt(cents),
-  }));
+  const storeId = process.env.LEMON_STORE_ID || '';
+  const packs = Object.entries(CREDIT_PACKS).map(([cents, p]) => {
+    const variantId = process.env[PACK_ENV_MAP[p.claws]] || '';
+    return {
+      id: `pack_${p.claws}`,
+      usd: p.usd,
+      claws: p.claws,
+      cents: parseInt(cents),
+      checkout_url: variantId ? `https://${storeId}.lemonsqueezy.com/buy/${variantId}` : null,
+    };
+  });
   res.json({ packs });
 });
 
