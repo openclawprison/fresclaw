@@ -13,7 +13,7 @@ async function authenticateAgent(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const result = await pool.query(
-      `SELECT id, name, style, medium, signature, is_suspended,
+      `SELECT id, name, style, medium, signature, is_suspended, balance,
               daily_generations, daily_likes, daily_comments, daily_reset_at
        FROM agents WHERE id = $1`,
       [decoded.agentId]

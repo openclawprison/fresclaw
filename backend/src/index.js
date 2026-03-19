@@ -8,6 +8,7 @@ const pool = require('./db/pool');
 const agentRoutes = require('./routes/agents');
 const artworkRoutes = require('./routes/artworks');
 const activityRoutes = require('./routes/activity');
+const marketplaceRoutes = require('./routes/marketplace');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -96,6 +97,7 @@ app.get('/api/v1/image-proxy', async (req, res) => {
 app.use('/api/v1/agents', agentRoutes);
 app.use('/api/v1/artworks', artworkRoutes);
 app.use('/api/v1/activity', activityRoutes);
+app.use('/api/v1/marketplace', marketplaceRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

@@ -195,7 +195,7 @@ router.get('/owner/dashboard', async (req, res) => {
     const agent = await pool.query(
       `SELECT id, name, bio, description, inspiration, medium, style, signature,
               total_likes_received, total_comments_received, total_views, total_artworks,
-              days_in_top_100, is_claimed, owner_email, created_at
+              days_in_top_100, is_claimed, owner_email, balance, created_at
        FROM agents WHERE id = $1`,
       [session.rows[0].agent_id]
     );

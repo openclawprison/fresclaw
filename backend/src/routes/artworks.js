@@ -15,7 +15,7 @@ const STYLE_TO_CATEGORY = {
 // POST /api/v1/artworks — Generate new artwork
 router.post('/', authenticateAgent, async (req, res) => {
   try {
-    const { title, prompt, description, tags } = req.body;
+    const { title, prompt, description, tags, price } = req.body;
 
     if (!title || !prompt || !description) {
       return res.status(400).json({ error: 'title, prompt, and description are required' });
@@ -24,9 +24,9 @@ router.post('/', authenticateAgent, async (req, res) => {
     if (prompt.length > 800) return res.status(400).json({ error: 'prompt max 800 chars' });
     if (description.length > 1000) return res.status(400).json({ error: 'description max 1000 chars' });
 
-    // Check daily limit: 5 per day, no redos
-    if (req.agent.daily_generations >= 5) {
-      return res.status(429).json({ error: 'Daily limit reached (5/day). No redos. Try again tomorrow.' });
+    // Check daily limit: 2 per day, no redos
+    if (req.agent.daily_generations >= 2) {
+      return res.status(429).json({ error: 'Daily limit reached (2/day). No redos. Try again tomorrow.' });
     }
 
     // 1. Generate image via Replicate
@@ -44,11 +44,12 @@ router.post('/', authenticateAgent, async (req, res) => {
 
     // 5. Create DB record to get ID
     const category = STYLE_TO_CATEGORY[req.agent.style] || 'abstract';
+    const salePrice = price && parseInt(price) >= 1 ? parseInt(price) : null;
     const artResult = await pool.query(
-      `INSERT INTO artworks (agent_id, title, prompt, description, tags, medium, style, category, image_url, signature, generation_model)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10)
+      `INSERT INTO artworks (agent_id, owner_agent_id, title, prompt, description, tags, medium, style, category, image_url, signature, generation_model, price, is_for_sale)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12)
        RETURNING id`,
-      [req.agent.id, title, prompt, description, tags || [], req.agent.medium, req.agent.style, category, req.agent.signature, model]
+      [req.agent.id, title, prompt, description, tags || [], req.agent.medium, req.agent.style, category, req.agent.signature, model, salePrice, salePrice ? true : false]
     );
     const artworkId = artResult.rows[0].id;
 
@@ -85,7 +86,7 @@ router.post('/', authenticateAgent, async (req, res) => {
       likes: 0,
       views: 0,
       status: 'published',
-      remaining_today: 5 - (req.agent.daily_generations + 1),
+      remaining_today: 2 - (req.agent.daily_generations + 1),
     });
   } catch (err) {
     console.error('Generate error:', err);
@@ -101,9 +102,13 @@ router.get('/', async (req, res) => {
     const orderBy = orderMap[sort] || orderMap.likes;
 
     let query = `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.medium, a.style, a.category,
-                        a.signature, a.likes_count, a.comments_count, a.views_count, a.is_top_100, a.top_100_rank, a.created_at,
-                        ag.id as agent_id, ag.name as agent_name, ag.style as agent_style
-                 FROM artworks a JOIN agents ag ON a.agent_id = ag.id WHERE a.is_removed = FALSE`;
+                        a.signature, a.likes_count, a.comments_count, a.views_count, a.is_top_100, a.top_100_rank,
+                        a.is_for_sale, a.price, a.owner_agent_id, a.last_sale_price, a.total_sales, a.created_at,
+                        ag.id as agent_id, ag.name as agent_name, ag.style as agent_style,
+                        ow.name as owner_name
+                 FROM artworks a JOIN agents ag ON a.agent_id = ag.id
+                 LEFT JOIN agents ow ON a.owner_agent_id = ow.id
+                 WHERE a.is_removed = FALSE`;
     const params = [];
 
     if (category !== 'all') { params.push(category); query += ` AND a.category = $${params.length}`; }
@@ -143,8 +148,11 @@ router.get('/:id', async (req, res) => {
   try {
     await pool.query('UPDATE artworks SET views_count = views_count + 1 WHERE id = $1', [req.params.id]);
     const result = await pool.query(
-      `SELECT a.*, ag.name as agent_name, ag.bio as agent_bio, ag.style as agent_style, ag.medium as agent_medium, ag.signature as agent_signature
-       FROM artworks a JOIN agents ag ON a.agent_id = ag.id WHERE a.id = $1 AND a.is_removed = FALSE`,
+      `SELECT a.*, ag.name as agent_name, ag.bio as agent_bio, ag.style as agent_style, ag.medium as agent_medium, ag.signature as agent_signature,
+              ow.name as owner_name
+       FROM artworks a JOIN agents ag ON a.agent_id = ag.id
+       LEFT JOIN agents ow ON a.owner_agent_id = ow.id
+       WHERE a.id = $1 AND a.is_removed = FALSE`,
       [req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Artwork not found' });
